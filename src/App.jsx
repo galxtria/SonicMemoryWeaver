@@ -5,7 +5,7 @@ import {
   Trash2, Upload, Volume2, Waves, Gauge, Timer, Layers, Info, RotateCcw,
   Heart, SkipBack, SkipForward, ListMusic, Circle, Download, Plus, Check
 } from 'lucide-react'
-import { analyzeImage, mapToMusic, getScale } from './lib/imageAnalysis.js'
+import { analyzeImage, mapToMusic, getScale, transposeScale } from './lib/imageAnalysis.js'
 import { startGenerative, stopGenerative, setBpm, setWet, setVolumeDB, getAnalyser, startRecording, stopRecording } from './lib/audioEngine.js'
 
 const HISTORY_KEY = 'smw-history-v1'
@@ -131,10 +131,11 @@ export default function App() {
     if (!active?.music) return null
     if (scaleOverride === 'auto') return active.music
     const s = getScale(scaleOverride)
+    const root = active.music.root || 'C'
     return {
       ...active.music,
       scaleKey: scaleOverride, scaleName: s.name + ' (Manual)',
-      notes: s.notes, mood: s.mood + ' • override manual',
+      notes: transposeScale(scaleOverride, root), mood: s.mood + ' • override manual',
     }
   }, [active, scaleOverride])
 
@@ -173,32 +174,38 @@ export default function App() {
   }, [tracks.length, pushHistory])
 
   const playParams = useCallback((trk, mus) => ({
-    notes: mus.notes,
+    notes: mus.notes, root: mus.root,
     octave: Math.min(6, Math.max(1, mus.octave + octaveShift)),
     bpm, attack: mus.attack, release: mus.release,
     warmth: trk.analysis.warmth, brightness: trk.analysis.brightness,
-    scaleKey: mus.scaleKey, padEnabled,
+    saturation: trk.analysis.saturation, contrast: trk.analysis.contrast,
+    hue: trk.analysis.hue, scaleKey: mus.scaleKey, padEnabled,
+    cutoff: mus.cutoff, reverbDecay: mus.reverbDecay,
+    sparkleDensity: mus.sparkleDensity, timbre: mus.timbre, swing: mus.swing,
   }), [bpm, octaveShift, padEnabled])
 
   const playTrack = useCallback(async (idx) => {
     const trk = tracks[idx]
     if (!trk) return
     setActiveIdx(idx)
-    // hitung musik efektif untuk track itu (dengan override)
+    // hitung musik efektif untuk track itu (dengan override, root dipertahankan)
     let mus = trk.music
     if (scaleOverride !== 'auto') {
       const s = getScale(scaleOverride)
-      mus = { ...mus, scaleKey: scaleOverride, scaleName: s.name, notes: s.notes }
+      mus = { ...mus, scaleKey: scaleOverride, scaleName: s.name, notes: transposeScale(scaleOverride, trk.music.root || 'C') }
     }
     if (playing || true) {
       // restart agar crossfade mulus antar foto
       stopGenerative(false)
       await startGenerative({
-        notes: mus.notes,
+        notes: mus.notes, root: mus.root,
         octave: Math.min(6, Math.max(1, mus.octave + octaveShift)),
-        bpm, attack: mus.ack ?? mus.attack, release: mus.release,
+        bpm, attack: mus.attack, release: mus.release,
         warmth: trk.analysis.warmth, brightness: trk.analysis.brightness,
-        scaleKey: mus.scaleKey, padEnabled,
+        saturation: trk.analysis.saturation, contrast: trk.analysis.contrast,
+        hue: trk.analysis.hue, scaleKey: mus.scaleKey, padEnabled,
+        cutoff: mus.cutoff, reverbDecay: mus.reverbDecay,
+        sparkleDensity: mus.sparkleDensity, timbre: mus.timbre, swing: mus.swing,
       })
       setPlaying(true)
     }
@@ -440,8 +447,8 @@ export default function App() {
                     <p className="text-[11px] uppercase tracking-widest opacity-70 flex items-center gap-1.5">
                       {warm ? <Sun size={12} /> : <Moon size={12} />} Tangga nada terdeteksi
                     </p>
-                    <p className="text-xl font-bold mt-0.5">{music.scaleName}</p>
-                    <p className="text-xs text-zinc-400">{music.mood}</p>
+                    <p className="text-xl font-bold mt-0.5">{music.scaleName} <span className="text-amber-400">• {music.root}</span></p>
+                    <p className="text-xs text-zinc-400">{music.mood} • {music.timbre} • cutoff {(music.cutoff / 1000).toFixed(1)}kHz</p>
                     <div className="flex flex-wrap gap-1.5 mt-2.5">
                       {music.notes.map((n) => (
                         <span key={n} className="text-[11px] font-mono px-2 py-1 rounded-lg bg-black/50 border border-white/10">{n}{Math.min(6, Math.max(1, music.octave + octaveShift))}</span>
