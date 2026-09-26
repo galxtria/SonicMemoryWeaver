@@ -98,10 +98,14 @@ export async function analyzeImage(imgSrc) {
   }
 }
 
-const SCALES = {
+export const SCALES = {
   major: { name: 'Mayor Ceria', notes: ['C', 'D', 'E', 'G', 'A'], mood: 'Hangat • ceria • bersemangat' },
   minor: { name: 'Minor Melankolis', notes: ['A', 'C', 'D', 'E', 'G'], mood: 'Dingin • tenang • melankolis' },
   dorian: { name: 'Dorian Misterius', notes: ['D', 'E', 'F', 'G', 'A', 'C'], mood: 'Dingin • misterius • dreamy' },
+}
+
+export function getScale(key) {
+  return SCALES[key] || SCALES.major
 }
 
 export function mapToMusic(a) {
